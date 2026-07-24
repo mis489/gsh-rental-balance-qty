@@ -365,7 +365,7 @@ def data_cell(ws, row, col, val, row_fill, algn=CTR, fmt=None):
     return c
 
 def build_dashboard(wb, sheet_title, title_text, top_parties, top_items,
-                     n_parties, n_items, grand_total, grand_weight, dark_hex, med_hex, bar_color):
+                     n_bills, n_parties, n_items, grand_total, grand_weight, dark_hex, med_hex, bar_color):
     ws = wb.create_sheet(title=sheet_title)
     ws.sheet_view.showGridLines = False
     ws.row_dimensions[1].height = 32
@@ -377,7 +377,7 @@ def build_dashboard(wb, sheet_title, title_text, top_parties, top_items,
     ws.row_dimensions[2].height = 20
     ws.merge_cells("A2:R2")
     c = ws.cell(row=2, column=1,
-        value=f"Parties: {n_parties}   |   Item Types: {n_items}   |   Grand Total Qty: {int(grand_total):,}"
+        value=f"Total Bills Uploaded: {n_bills}   |   Parties: {n_parties}   |   Item Types: {n_items}   |   Grand Total Qty: {int(grand_total):,}"
               f"   |   Grand Total Weight: {int(grand_weight):,} kg")
     c.font = Font(name="Arial", size=10, italic=True, color=WHITE)
     c.fill = mk_fill(med_hex); c.alignment = CTR
@@ -502,10 +502,11 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
     ws.column_dimensions[get_column_letter(weight_col)].width = 16
     ws.freeze_panes = f"{get_column_letter(item_start_col)}4"
 
-def build_location_tab(wb, sheet_title, location_name, items_dict, dark_hex, med_hex):
+def build_location_tab(wb, sheet_title, location_name, items_dict, dark_hex, med_hex, n_bills=None):
     ws = wb.create_sheet(title=sheet_title[:31])
     title_row(ws, 1, location_name, 5, dark_hex)
-    info_row(ws, 2, f"Items shown: {len(items_dict)}   |   Negative qty never added into totals", 5, med_hex)
+    bills_txt = f"Bills: {n_bills}   |   " if n_bills is not None else ""
+    info_row(ws, 2, f"{bills_txt}Items shown: {len(items_dict)}   |   Negative qty never added into totals", 5, med_hex)
 
     ws.row_dimensions[3].height = 20
     header_cell(ws, 3, 1, "S.No", dark_hex, CTR)
@@ -606,7 +607,7 @@ def build_excel(data, out_path, title):
     build_dashboard(
         wb, "Dashboard", f"📊 {title}",
         top_parties(), top_items(),
-        len(parties), len(all_items), grand_total, grand_weight,
+        len(bills), len(parties), len(all_items), grand_total, grand_weight,
         DARK_BLUE, MED_BLUE, "2F75B5"
     )
 
@@ -617,9 +618,13 @@ def build_excel(data, out_path, title):
         party_locations=party_locations
     )
 
+    bills_per_location = defaultdict(int)
+    for bill in bills:
+        bills_per_location[bill['location']] += 1
+
     for loc in sorted(locations):
         items_dict = dict(loc_data[loc])
-        build_location_tab(wb, loc, loc, items_dict, DARK_BLUE, MED_BLUE)
+        build_location_tab(wb, loc, loc, items_dict, DARK_BLUE, MED_BLUE, n_bills=bills_per_location[loc])
 
     # ── Per-location Party Wise tabs — same matrix, filtered to one location ──
     for loc in sorted(locations):
