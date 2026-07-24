@@ -648,7 +648,7 @@ def build_location_tab(wb, sheet_title, location_name, items_dict, dark_hex, med
     header_cell(ws, 3, 4, "Wt (per unit)", dark_hex, CTR)
     header_cell(ws, 3, 5, "Total Wt", dark_hex, CTR)
 
-    sorted_items = sorted(items_dict.items(), key=lambda x: x[1], reverse=True)
+    sorted_items = sorted(items_dict.items(), key=lambda x: x[0])  # A to Z by item name
     for row_num, (item, qty) in enumerate(sorted_items, start=1):
         er = 3 + row_num
         ws.row_dimensions[er].height = 16
@@ -815,51 +815,80 @@ if uploaded_zip is not None:
             progress_bar.empty()
 
             if data['pdf_count'] == 0:
+                st.session_state.pop('result', None)
                 st.error("Koi PDF nahi mila. ZIP ke andar ka structure check karo.")
             else:
-                st.success(
-                    f"✅ Done — PDFs: {data['pdf_count']} | Locations: {len(data['locations'])} "
-                    f"| Parties: {len(data['parties'])} | Items: {len(data['all_items'])}"
-                )
-                if data['locations']:
-                    st.write("Locations: " + ", ".join(data['locations']))
-                if data.get('recovered_count'):
-                    st.info(f"✅ {data['recovered_count']} bills me 'Balance Qty' line nahi thi, unki Qty 'Description For Hire Charges' table se le li gayi hai.")
-                if data['no_balance_count']:
-                    st.info(f"{data['no_balance_count']} bills me kahi se bhi Qty nahi mili (final bills — skip kiye).")
-                if data['errors']:
-                    with st.expander(f"⚠️ {len(data['errors'])} PDFs parse nahi hue — dekho"):
-                        for e in data['errors'][:50]:
-                            st.text(e)
-
                 out_path = os.path.join(tmpdir, "Rental_Balance_Qty.xlsx")
                 unmatched = build_excel(data, out_path, report_title)
-
-                if unmatched:
-                    with st.expander(f"⚖️ {len(unmatched)} items ki weight table me nahi mili (Total Wt blank rahega)"):
-                        for item in unmatched:
-                            st.text(item)
-
                 with open(out_path, "rb") as f:
-                    st.download_button(
-                        "⬇️ Excel Download Karo",
-                        data=f.read(),
-                        file_name="Rental_Balance_Qty.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        type="primary",
-                    )
+                    excel_bytes = f.read()
 
                 review_files = data.get('no_balance_files', []) + data.get('error_files', [])
+                review_zip_bytes = None
                 if review_files:
                     review_zip_bytes = build_review_zip(
                         data.get('no_balance_files', []), data.get('error_files', [])
                     )
-                    st.download_button(
-                        f"⬇️ Un {len(review_files)} Bills ki PDFs Download Karo (jinki Qty nahi mili)",
-                        data=review_zip_bytes,
-                        file_name="Bills_Needing_Review.zip",
-                        mime="application/zip",
-                    )
+
+                # Save everything needed to render the results — this survives
+                # the rerun that happens when a download button is clicked.
+                st.session_state['result'] = {
+                    "data_summary": {
+                        "pdf_count": data['pdf_count'],
+                        "locations": data['locations'],
+                        "parties": data['parties'],
+                        "all_items": data['all_items'],
+                        "recovered_count": data.get('recovered_count', 0),
+                        "no_balance_count": data['no_balance_count'],
+                        "errors": data['errors'],
+                    },
+                    "unmatched": unmatched,
+                    "excel_bytes": excel_bytes,
+                    "review_zip_bytes": review_zip_bytes,
+                    "review_count": len(review_files),
+                }
+
+# ── Render results (persists across download-button reruns) ──
+if 'result' in st.session_state:
+    r = st.session_state['result']
+    s = r['data_summary']
+    st.success(
+        f"✅ Done — PDFs: {s['pdf_count']} | Locations: {len(s['locations'])} "
+        f"| Parties: {len(s['parties'])} | Items: {len(s['all_items'])}"
+    )
+    if s['locations']:
+        st.write("Locations: " + ", ".join(s['locations']))
+    if s.get('recovered_count'):
+        st.info(f"✅ {s['recovered_count']} bills me 'Balance Qty' line nahi thi, unki Qty 'Description For Hire Charges' table se le li gayi hai.")
+    if s['no_balance_count']:
+        st.info(f"{s['no_balance_count']} bills me kahi se bhi Qty nahi mili (final bills — skip kiye).")
+    if s['errors']:
+        with st.expander(f"⚠️ {len(s['errors'])} PDFs parse nahi hue — dekho"):
+            for e in s['errors'][:50]:
+                st.text(e)
+
+    if r['unmatched']:
+        with st.expander(f"⚖️ {len(r['unmatched'])} items ki weight table me nahi mili (Total Wt blank rahega)"):
+            for item in r['unmatched']:
+                st.text(item)
+
+    st.download_button(
+        "⬇️ Excel Download Karo",
+        data=r['excel_bytes'],
+        file_name="Rental_Balance_Qty.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary",
+        key="dl_excel",
+    )
+
+    if r['review_zip_bytes']:
+        st.download_button(
+            f"⬇️ Un {r['review_count']} Bills ki PDFs Download Karo (jinki Qty nahi mili)",
+            data=r['review_zip_bytes'],
+            file_name="Bills_Needing_Review.zip",
+            mime="application/zip",
+            key="dl_review_zip",
+        )
 
 st.divider()
 st.caption("Data sirf is session me process hota hai, kahi save nahi hota. Har upload ek naya, alag run hai.")
