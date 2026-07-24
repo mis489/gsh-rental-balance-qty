@@ -62,11 +62,12 @@ WEIGHT_MAP = {
     "CHALI 8FT.": 20.0,
     "CHALI(6 TO 7)FT": 18.0,
     "CHALI(6 TO 8)FT": 18.0,
-    "CHALI-10 FT": 22.0,
+    "CHALI-10 FT": 27.0,
     "CHALI-6 F'T": 15.0,
     "CHANNEL -6-8 FEET": 18.0,
     "CHANNEL -7-8 FEET": 17.0,
     "CHANNEL -8-9 FEET": 20.0,
+    "CHANNEL -9 FT": 20.0,
     "CHANNEL 10 FT": 24.0,
     "CHANNEL 20FT": 48.0,
     "CHANNEL 7 FT": 16.0,
@@ -79,22 +80,25 @@ WEIGHT_MAP = {
     "CHANNEL-6 FT": 14.0,
     "CLAMP": 0.75,
     "CLAMP-FIXED": 0.75,
-    "CLAMP-MOVING": 0.75,
+    "CLAMP-MOVING": 0.85,
     "H-FARM -2*1 MTR": 11.5,
     "H-FRAME BRASSING": 11.5,
     "INNER -3M PROP": 10.2,
     "INNER 2*3": 10.2,
+    "INNER 2360 MM": 7.5,
     "INNER 2M PROP": 7.2,
     "INNER 4MTR": 24.0,
     "INNER2.5MTR": 9.0,
-    "JOINTER": 0.55,
+    "JOINTER": 0.65,
     "KAICHI-2*1 MTR": 4.0,
     "KAICHI-2.5 MTR": 5.0,
     "LEDGER - 1/2 MM": 2.0,
     "LEDGER 1.2 MTR": 4.0,
     "LEDGER 1.5 MTR": 5.0,
     "LEDGER 1.8 M": 6.0,
+    "LEDGER 1M": 3.5,
     "LEDGER 1MTR": 3.5,
+    "LEDGER 2M": 6.5,
     "LEDGER 2MTR": 6.5,
     "LEDGER 915MM": 3.0,
     "MS PIPE 4 MTR": 13.5,
@@ -104,15 +108,16 @@ WEIGHT_MAP = {
     "MS PIPE-3 MTR": 10.0,
     "OUTER 2": 10.2,
     "OUTER 2 MTR": 10.2,
-    "OUTER 3": 13.2,
+    "OUTER 3": 15.0,
     "PROP 2*3": 20.0,
     "PROP2*2 (BASE)": 18.0,
     "PROPS 2*3 BASE": 20.0,
-    "SHUTTEIRNG PLATE-3*1.8": 12.0,
+    "SHUTTEIRNG PLATE-3*1.8": 15.0,
+    "SHUTTERIN-2*2": 18.0,
     "SHUTTERING PLATE - 3*2 (HEAVY)": 21.5,
     "SHUTTERING PLATE -4*1.5": 25.0,
     "SHUTTERING PLATE 2*1.5(WELDED)": 12.0,
-    "SHUTTERING PLATE 3*14(WELDED)": 12.0,
+    "SHUTTERING PLATE 3*14(WELDED)": 15.0,
     "SHUTTERING PLATE 3*15": 12.0,
     "SHUTTERING PLATE 3*2": 21.5,
     "SHUTTERING PLATE 3*2 (17 KGS)": 17.0,
@@ -130,36 +135,41 @@ WEIGHT_MAP = {
     "SHUTTERING PROP 2*2.5": 19.0,
     "SHUTTERING PROP 2*4": 23.0,
     "SHUTTERING PROP 3*3": 26.0,
-    "SHUTTERING PROP-2*3": 20.0,
-    "SHUTTERING PROP-2.5*2": 19.0,
-    "SIKANJA": 0.75,
-    "SIKANJA -4 FT.": 0.75,
-    "SIKANJA 2.5 FT.": 0.75,
-    "SIKANJA 2FT": 0.75,
+    "SHUTTERING PROP-2*3": 21.0,
+    "SHUTTERING PROP-2.5*2": 20.0,
+    "SHUTTERING PROP-3*4": 28.0,
+    "SIKANJA": 2.0,
+    "SIKANJA -4 FT.": 2.0,
+    "SIKANJA 2.5 FT.": 2.0,
+    "SIKANJA 2FT": 2.0,
     "SIKANJA 3 FT.": 0.75,
+    "SIKANJA 3.5 FT.": 2.0,
+    "SPAN INNER": 20.0,
     "SQUARE TUBE -1.5 MTR": 5.0,
     "SQUARE TUBE -2 MTR": 6.5,
     "SQUARE TUBE -6 MTR": 20.0,
     "STANDARD 0.5 WITH 1 CUPS": 2.0,
-    "STANDARD 1 MTR WITH 2 CUPS": 4.0,
+    "STANDARD 1 MTR WITH 2 CUPS": 4.5,
     "STANDARD 1.5M WITH 3 CUPS": 7.0,
     "STANDARD 2 MTR WITH 4 CUPS": 9.0,
     "STANDARD 2.5 METER WITH 5 CUPS": 11.5,
     "STANDARD 3MTR WITH 6 CUPS": 13.2,
     "STEEL FARMA-1.2": 20.0,
     "STEEL FARMA-1.5": 22.0,
+    "STEEL FORM-1.2": 22.0,
+    "STEEL FORM-1.5 M": 25.0,
     "STEEL PLATE 2*1(WELDEED)": 12.0,
     "STEEL PLATE 2*18(WELDEED)": 12.0,
     "STEEL PLATE 2*2(WELDEED)": 12.0,
-    "STEEL PLATE 3*.9(WELDED)": 5.5,
+    "STEEL PLATE 3*.9(WELDED)": 10.0,
     "STEEL PLATE 3*1 (5.5 KGS)": 5.5,
     "STEEL PLATE 3*1(WELDED)": 12.0,
-    "STEEL PLATE 3*1.15(WALDED)": 12.0,
-    "STEEL PLATE 3*1.5 LIGHT WEIGHT": 12.0,
-    "STEEL PLATE 3*1.5 WELDED": 12.0,
+    "STEEL PLATE 3*1.15(WALDED)": 15.0,
+    "STEEL PLATE 3*1.5 LIGHT WEIGHT": 15.0,
+    "STEEL PLATE 3*1.5 WELDED": 15.0,
     "STEEL PLATE 3*15(WELDED)": 12.0,
     "STEEL PLATE 3*2 LIGHT WEIGHT": 17.0,
-    "STEEL PLATE 3*21(WELDED)": 15.0,
+    "STEEL PLATE 3*21(WELDED)": 18.0,
     "STEEL PLATES 3* 18": 12.0,
     "STEEL PLATES 3*1.5 (14.5 KGS)": 14.5,
     "STEEL PLATES 3*18 (12 KGS)": 12.0,
@@ -170,16 +180,15 @@ WEIGHT_MAP = {
     "STEEL PLATES 3*2 (17KG)WELDED": 17.0,
     "STEEL PLATES 3*2 (21 KGS)": 21.0,
     "U JACK 650 MM": 3.5,
-    "UJACK (350+450)MM": 3.0,
-    "UJACK 350MM": 3.0,
+    "UJACK (350+450)MM": 3.2,
+    "UJACK 350MM": 3.2,
     "UJACK 600MM": 3.5,
-    "UJACK-400 MM": 3.1,
+    "UJACK-400 MM": 3.2,
     "UJACK-450 MM": 3.3,
     "UJACK-450+550 MM": 3.3,
     "WALKWAY CHALI-1.2 MTR": 11.5,
     "WALKWAY CHALI-1.5 MTR": 12.0,
 }
-
 def get_weight(item_name):
     """Look up per-unit weight for an item. Returns None if not in the table."""
     return WEIGHT_MAP.get(item_name.strip().upper())
@@ -280,6 +289,15 @@ def clean_location(folder_name):
     name = re.sub(r'[\-_]+', ' ', folder_name).strip()
     return name[:28]
 
+# A real SKU name never has a standalone "-30"/"-330"-style negative number
+# token (dimensions in item names are always unsigned, e.g. "2 MTR", "10 FT").
+# When the PDF text has no comma between a chain of adjustment values
+# (e.g. "UJACK-450 MM - 10 -30 -30 -330 -330 -1110"), that whole chunk gets
+# treated as a single comma-part, and the item-name capture group ends up
+# swallowing the earlier numbers. This pattern catches that so we can throw
+# the entry out instead of silently recording a wrong item/qty.
+_EMBEDDED_NEG_RE = re.compile(r'(?:^|\s)-\d+(?:\.\d+)?\b')
+
 def extract_balance_qty(text):
     text = re.sub(r'\s+', ' ', text)
     match = re.search(
@@ -287,21 +305,31 @@ def extract_balance_qty(text):
         text, re.IGNORECASE | re.DOTALL
     )
     if not match:
-        return {}
+        return {}, []
     balance_text = match.group(1).strip()
     items = {}
+    ambiguous = []   # raw text chunks we refused to guess at
     for part in balance_text.split(','):
         part = part.strip()
+        if not part:
+            continue
         m = re.match(r'^(.+?)\s*-\s*([\d\.\-]+)\s*$', part)
         if m:
             item = m.group(1).strip().upper()
+            # A single dash-prefixed number inside a name is normal (item
+            # codes like "CHANNEL -10", "LEDGER -1.8 MTR"). Only a CHAIN of
+            # 2+ such tokens means multiple un-comma'd adjustment values got
+            # glued into the name — that's the actually corrupted case.
+            if len(_EMBEDDED_NEG_RE.findall(item)) >= 2:
+                ambiguous.append(part)
+                continue
             try:
                 qty = float(m.group(2))
                 if item:
                     items[item] = items.get(item, 0) + qty
             except ValueError:
                 pass
-    return items
+    return items, ambiguous
 
 def get_party(filepath):
     base = os.path.basename(filepath).replace('.pdf', '')
@@ -380,6 +408,7 @@ def parse_folder(root, progress_cb=None):
     bills, all_items = [], set()
     no_balance_files = []   # list of dicts: filename, path  — parsed OK but no Balance Qty line
     error_files = []        # list of dicts: filename, path, error — could not be parsed at all
+    ambiguous_files = []    # list of dicts: filename, path, chunks — malformed Qty text, skipped
     recovered_count = 0     # bills where Balance Qty was missing but Hire Charges table filled it in
     pdf_files = glob.glob(os.path.join(root, '**', '*.pdf'), recursive=True)
     if not pdf_files:
@@ -397,7 +426,12 @@ def parse_folder(root, progress_cb=None):
         party = get_party(pdf_path)
         try:
             text = extract_text(pdf_path)
-            items = extract_balance_qty(text)
+            items, ambiguous = extract_balance_qty(text)
+            if ambiguous:
+                ambiguous_files.append({
+                    "filename": os.path.basename(pdf_path), "path": pdf_path,
+                    "chunks": ambiguous,
+                })
             recovered_from = None
             if not items:
                 # Balance Qty line missing entirely — try the Hire Charges
@@ -408,7 +442,7 @@ def parse_folder(root, progress_cb=None):
                     items = fallback_items
                     recovered_from = "hire_charges_table"
                     recovered_count += 1
-                else:
+                elif not ambiguous:
                     no_balance_files.append({"filename": os.path.basename(pdf_path), "path": pdf_path})
             bills.append({
                 "filename": os.path.basename(pdf_path),
@@ -427,13 +461,15 @@ def parse_folder(root, progress_cb=None):
         "no_balance_count": len(no_balance_files),
         "no_balance_files": no_balance_files,
         "recovered_count": recovered_count,
+        "ambiguous_count": len(ambiguous_files),
+        "ambiguous_files": ambiguous_files,
         "errors": [f"{e['filename']}: {e['error']}" for e in error_files],
         "error_files": error_files,
         "pdf_count": len(pdf_files),
     }
 
 
-def build_review_zip(no_balance_files, error_files):
+def build_review_zip(no_balance_files, error_files, ambiguous_files=None):
     """Zip of PDFs where we couldn't get a Qty — for Rahul to review manually."""
     import io
     buf = io.BytesIO()
@@ -444,6 +480,9 @@ def build_review_zip(no_balance_files, error_files):
         for f in error_files:
             if os.path.exists(f["path"]):
                 zf.write(f["path"], arcname=os.path.join("Could_Not_Parse", f["filename"]))
+        for f in (ambiguous_files or []):
+            if os.path.exists(f["path"]):
+                zf.write(f["path"], arcname=os.path.join("Ambiguous_Qty_Needs_Review", f["filename"]))
     buf.seek(0)
     return buf.getvalue()
 
@@ -738,6 +777,17 @@ def build_excel(data, out_path, title):
             if qty > 0:
                 loc_party_data[bill['location']][bill['party']][item] += qty
 
+    # ── Real item universe = only names that actually carry a positive qty
+    # somewhere in the report. Garbage/junk strings that only ever showed up
+    # with a negative (skipped) qty — e.g. messy PDF text like a run of
+    # "-30 -30 -330" adjustments glued onto an item name — never make it in,
+    # so they can't pollute the Party Wise columns, item counts, or the
+    # Missing Weight tab. ──
+    real_items = set()
+    for items in party_data.values():
+        real_items.update(items.keys())
+    all_items = sorted(real_items)
+
     def top_parties():
         totals = {p: sum(items.values()) for p, items in party_data.items() if sum(items.values()) > 0}
         top20 = sorted(totals.items(), key=lambda x: x[1], reverse=True)[:20]
@@ -848,11 +898,16 @@ if uploaded_zip is not None:
                 with open(out_path, "rb") as f:
                     excel_bytes = f.read()
 
-                review_files = data.get('no_balance_files', []) + data.get('error_files', [])
+                review_files = (
+                    data.get('no_balance_files', [])
+                    + data.get('error_files', [])
+                    + data.get('ambiguous_files', [])
+                )
                 review_zip_bytes = None
                 if review_files:
                     review_zip_bytes = build_review_zip(
-                        data.get('no_balance_files', []), data.get('error_files', [])
+                        data.get('no_balance_files', []), data.get('error_files', []),
+                        data.get('ambiguous_files', [])
                     )
 
                 # Save everything needed to render the results — this survives
@@ -865,6 +920,7 @@ if uploaded_zip is not None:
                         "all_items": data['all_items'],
                         "recovered_count": data.get('recovered_count', 0),
                         "no_balance_count": data['no_balance_count'],
+                        "ambiguous_count": data.get('ambiguous_count', 0),
                         "errors": data['errors'],
                     },
                     "unmatched": unmatched,
@@ -883,10 +939,10 @@ if 'result' in st.session_state:
     )
     if s['locations']:
         st.write("Locations: " + ", ".join(s['locations']))
-    if s.get('recovered_count'):
-        st.info(f"✅ {s['recovered_count']} bills me Qty seedhe nahi mili, hire charges table se nikal li gayi.")
     if s['no_balance_count']:
         st.info(f"{s['no_balance_count']} bills me kahi se bhi Qty nahi mili (final bills — skip kiye).")
+    if s.get('ambiguous_count'):
+        st.warning(f"⚠️ {s['ambiguous_count']} bills me Qty text confusing tha (bina comma ke jude hue numbers) — safety ke liye skip kar diya, download me 'Ambiguous_Qty_Needs_Review' folder me milega, manually check karo.")
     if s['errors']:
         with st.expander(f"⚠️ {len(s['errors'])} PDFs parse nahi hue — dekho"):
             for e in s['errors'][:50]:
