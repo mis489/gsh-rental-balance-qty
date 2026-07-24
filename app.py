@@ -310,10 +310,77 @@ def get_party(filepath):
         return parts[1].strip()
     return base
 
+
+# ── Fallback: "Description For Hire Charges" table ──────────
+# ONLY used when a bill has NO "Balance Qty:" line at all. When Balance Qty
+# exists it is trusted as-is and this fallback is never consulted or
+# cross-checked against it (per Rahul's instruction).
+_HC_NUM_LINE_RE = re.compile(r'^-?[\d.,]+(\s*\(-?[\d.,]+\s*[+\-]\s*-?[\d.,]+\))?$')
+_HC_JUNK_NAMES = {
+    "GRAND TOTAL", "TOTAL AMOUNT", "CGST", "SGST", "ROUND OFF", "CGST (9%)", "SGST (9%)",
+    "CONTINUE FROM NEXT PAGE", "BANK DETAILS", "PARTY NAME", "BILLING ADDRESS", "GST NO",
+    "STATE CODE", "SITE ADDRESS", "BILL NO", "FROM DATE", "DATE", "TO", "STATECODE",
+    "RUNNING BILL", "DESCRIPTION FOR HIRE CHARGES",
+}
+_HC_BAD_NAME_RE = re.compile(r'^[A-Z]{2,6}\d{3,}$')
+_HC_DATE_RE = re.compile(r'\d{1,2}-\d{1,2}-\d{2,4}')
+
+def _hc_looks_like_item(name):
+    if not name or len(name) > 45 or len(name) < 2:
+        return False
+    if name in _HC_JUNK_NAMES:
+        return False
+    if ',' in name:
+        return False
+    if _HC_BAD_NAME_RE.match(name.replace(' ', '')):
+        return False
+    if _HC_DATE_RE.search(name):
+        return False
+    if not re.search(r'[A-Za-z]', name):
+        return False
+    if 'PAGE' in name and 'OF' in name:
+        return False
+    return True
+
+def extract_hire_charges_items(text):
+    """Line-by-line pass over the 'Description For Hire Charges' table.
+    For each item, the LAST number seen before the next item name is its
+    final balance (matches how the bill itself resolves partial-period
+    returns, e.g. '507(564 - 57)' -> takes 507)."""
+    items = {}
+    for m in re.finditer(r'Description For Hire Charges', text):
+        start = m.end()
+        header_m = re.match(r'\s*Period\s*GST SAC\s*No\s*Days\s*Number\s*Rate\s*Amount\s*', text[start:start + 200])
+        if header_m:
+            start += header_m.end()
+        end_candidates = []
+        for pat in [r'\d{1,2}\s+[A-Za-z]{3}\s*-\s*\d{1,2}\s+[A-Za-z]{3}', r'Page\s+\d+\s+of\s+\d+', r'\x0c', r'Party Name', r'Bill No']:
+            mm = re.search(pat, text[start:start + 4000])
+            if mm:
+                end_candidates.append(start + mm.start())
+        end = min(end_candidates) if end_candidates else start + 1500
+        section = text[start:end]
+
+        lines = [l.strip() for l in section.split('\n') if l.strip()]
+        current_item, last_val = None, None
+        for line in lines:
+            if _HC_NUM_LINE_RE.match(line):
+                nm = re.match(r'^(-?[\d.]+)', line)
+                if nm and current_item:
+                    last_val = float(nm.group(1))
+            else:
+                if current_item and last_val is not None and last_val != 0 and _hc_looks_like_item(current_item):
+                    items[current_item] = items.get(current_item, 0) + last_val
+                current_item, last_val = line.upper(), None
+        if current_item and last_val is not None and last_val != 0 and _hc_looks_like_item(current_item):
+            items[current_item] = items.get(current_item, 0) + last_val
+    return items
+
 def parse_folder(root, progress_cb=None):
     bills, all_items = [], set()
     no_balance_files = []   # list of dicts: filename, path  — parsed OK but no Balance Qty line
     error_files = []        # list of dicts: filename, path, error — could not be parsed at all
+    recovered_count = 0     # bills where Balance Qty was missing but Hire Charges table filled it in
     pdf_files = glob.glob(os.path.join(root, '**', '*.pdf'), recursive=True)
     if not pdf_files:
         pdf_files = glob.glob(os.path.join(root, '*.pdf'))
@@ -331,11 +398,22 @@ def parse_folder(root, progress_cb=None):
         try:
             text = extract_text(pdf_path)
             items = extract_balance_qty(text)
+            recovered_from = None
             if not items:
-                no_balance_files.append({"filename": os.path.basename(pdf_path), "path": pdf_path})
+                # Balance Qty line missing entirely — try the Hire Charges
+                # table as a fallback. Only kicks in when Balance Qty gave
+                # nothing; never overrides or cross-checks an existing value.
+                fallback_items = extract_hire_charges_items(text)
+                if fallback_items:
+                    items = fallback_items
+                    recovered_from = "hire_charges_table"
+                    recovered_count += 1
+                else:
+                    no_balance_files.append({"filename": os.path.basename(pdf_path), "path": pdf_path})
             bills.append({
                 "filename": os.path.basename(pdf_path),
-                "location": location, "party": party, "items": items
+                "location": location, "party": party, "items": items,
+                "recovered_from": recovered_from,
             })
             all_items.update(items.keys())
         except Exception as e:
@@ -348,6 +426,7 @@ def parse_folder(root, progress_cb=None):
         "all_items": sorted(all_items),
         "no_balance_count": len(no_balance_files),
         "no_balance_files": no_balance_files,
+        "recovered_count": recovered_count,
         "errors": [f"{e['filename']}: {e['error']}" for e in error_files],
         "error_files": error_files,
         "pdf_count": len(pdf_files),
@@ -744,8 +823,10 @@ if uploaded_zip is not None:
                 )
                 if data['locations']:
                     st.write("Locations: " + ", ".join(data['locations']))
+                if data.get('recovered_count'):
+                    st.info(f"✅ {data['recovered_count']} bills me 'Balance Qty' line nahi thi, unki Qty 'Description For Hire Charges' table se le li gayi hai.")
                 if data['no_balance_count']:
-                    st.info(f"{data['no_balance_count']} bills me Balance Qty nahi mila (final bills — skip kiye).")
+                    st.info(f"{data['no_balance_count']} bills me kahi se bhi Qty nahi mili (final bills — skip kiye).")
                 if data['errors']:
                     with st.expander(f"⚠️ {len(data['errors'])} PDFs parse nahi hue — dekho"):
                         for e in data['errors'][:50]:
