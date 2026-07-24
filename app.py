@@ -605,8 +605,9 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
     name_col = 2
     loc_col = 3 if show_loc else None
     item_start_col = 4 if show_loc else 3
-    total_cols = (item_start_col - 1) + len(all_items) + 1
-    weight_col = item_start_col + len(all_items)
+    qty_total_col = item_start_col + len(all_items)      # side total: sum of qty across items, per row
+    weight_col = qty_total_col + 1
+    total_cols = weight_col
 
     title_row(ws, 1, title_text, total_cols, dark_hex)
     info_row(ws, 2,
@@ -622,8 +623,13 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
         c = ws.cell(row=3, column=idx, value=item)
         c.font = Font(name="Arial", bold=True, size=9, color=WHITE)
         c.fill = mk_fill(med_hex); c.alignment = WRP; c.border = thin_border()
+    header_cell(ws, 3, qty_total_col, "TOTAL QTY", dark_hex,
+                Alignment(horizontal="center", vertical="center", wrap_text=True))
     header_cell(ws, 3, weight_col, "TOTAL WEIGHT (kg)", dark_hex,
                 Alignment(horizontal="center", vertical="center", wrap_text=True))
+
+    item_col_letter_start = get_column_letter(item_start_col)
+    item_col_letter_end = get_column_letter(qty_total_col - 1) if all_items else item_col_letter_start
 
     for row_num, party in enumerate(sorted_parties, start=1):
         er = 3 + row_num
@@ -643,6 +649,9 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
                 wt = get_weight(item)
                 if wt is not None:
                     party_weight += qty * wt
+        # Side total — sum of this party's qty across every item column
+        qty_total_formula = f"=SUM({item_col_letter_start}{er}:{item_col_letter_end}{er})" if all_items else None
+        data_cell(ws, er, qty_total_col, qty_total_formula, row_fill, CTR, '#,##0')
         data_cell(ws, er, weight_col, int(round(party_weight)) if party_weight else None,
                    row_fill, CTR, '#,##0')
 
@@ -656,7 +665,7 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
     c = ws.cell(row=total_row, column=1, value="GRAND TOTAL")
     c.font = Font(name="Arial", bold=True, size=10, color=WHITE); c.alignment = CTR
 
-    for col_idx in range(item_start_col, item_start_col + len(all_items) + 1):
+    for col_idx in range(item_start_col, weight_col + 1):
         col_letter = get_column_letter(col_idx)
         c = ws.cell(row=total_row, column=col_idx,
                     value=f"=SUM({col_letter}{data_start}:{col_letter}{data_end})")
@@ -671,6 +680,7 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
     for col_idx in range(item_start_col, item_start_col + len(all_items)):
         item = all_items[col_idx - item_start_col]
         ws.column_dimensions[get_column_letter(col_idx)].width = max(10, min(18, len(item) * 0.85))
+    ws.column_dimensions[get_column_letter(qty_total_col)].width = 14
     ws.column_dimensions[get_column_letter(weight_col)].width = 16
     ws.freeze_panes = f"{get_column_letter(item_start_col)}4"
 
