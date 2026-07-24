@@ -276,7 +276,9 @@ def get_party(filepath):
     return base
 
 def parse_folder(root, progress_cb=None):
-    bills, all_items, no_balance, errors = [], set(), [], []
+    bills, all_items = [], set()
+    no_balance_files = []   # list of dicts: filename, path  — parsed OK but no Balance Qty line
+    error_files = []        # list of dicts: filename, path, error — could not be parsed at all
     pdf_files = glob.glob(os.path.join(root, '**', '*.pdf'), recursive=True)
     if not pdf_files:
         pdf_files = glob.glob(os.path.join(root, '*.pdf'))
@@ -295,24 +297,41 @@ def parse_folder(root, progress_cb=None):
             text = extract_text(pdf_path)
             items = extract_balance_qty(text)
             if not items:
-                no_balance.append(os.path.basename(pdf_path))
+                no_balance_files.append({"filename": os.path.basename(pdf_path), "path": pdf_path})
             bills.append({
                 "filename": os.path.basename(pdf_path),
                 "location": location, "party": party, "items": items
             })
             all_items.update(items.keys())
         except Exception as e:
-            errors.append(f"{os.path.basename(pdf_path)}: {e}")
+            error_files.append({"filename": os.path.basename(pdf_path), "path": pdf_path, "error": str(e)})
 
     return {
         "bills": bills,
         "locations": sorted(set(b['location'] for b in bills)),
         "parties": sorted(set(b['party'] for b in bills)),
         "all_items": sorted(all_items),
-        "no_balance_count": len(no_balance),
-        "errors": errors,
+        "no_balance_count": len(no_balance_files),
+        "no_balance_files": no_balance_files,
+        "errors": [f"{e['filename']}: {e['error']}" for e in error_files],
+        "error_files": error_files,
         "pdf_count": len(pdf_files),
     }
+
+
+def build_review_zip(no_balance_files, error_files):
+    """Zip of PDFs where we couldn't get a Qty — for Rahul to review manually."""
+    import io
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in no_balance_files:
+            if os.path.exists(f["path"]):
+                zf.write(f["path"], arcname=os.path.join("No_Balance_Qty_Found", f["filename"]))
+        for f in error_files:
+            if os.path.exists(f["path"]):
+                zf.write(f["path"], arcname=os.path.join("Could_Not_Parse", f["filename"]))
+    buf.seek(0)
+    return buf.getvalue()
 
 
 # ════════════════════════════════════════════════════════
@@ -712,6 +731,18 @@ if uploaded_zip is not None:
                         file_name="Rental_Balance_Qty.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         type="primary",
+                    )
+
+                review_files = data.get('no_balance_files', []) + data.get('error_files', [])
+                if review_files:
+                    review_zip_bytes = build_review_zip(
+                        data.get('no_balance_files', []), data.get('error_files', [])
+                    )
+                    st.download_button(
+                        f"⬇️ Un {len(review_files)} Bills ki PDFs Download Karo (jinki Qty nahi mili)",
+                        data=review_zip_bytes,
+                        file_name="Bills_Needing_Review.zip",
+                        mime="application/zip",
                     )
 
 st.divider()
