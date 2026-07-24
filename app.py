@@ -423,11 +423,18 @@ def build_dashboard(wb, sheet_title, title_text, top_parties, top_items,
     ws.column_dimensions["E"].width = 14
 
 def build_party_matrix(wb, sheet_title, title_text, party_data,
-                        sorted_parties, all_items, dark_hex, med_hex):
+                        sorted_parties, all_items, dark_hex, med_hex,
+                        party_locations=None):
+    """party_locations: optional dict party -> sorted list of location names.
+    When given, an extra LOCATION column is inserted right after PARTY NAME
+    so it's clear which location(s) each party's bills came from."""
     ws = wb.create_sheet(title=sheet_title)
-    # +1 extra column at the end for Total Weight per party
-    total_cols = 2 + len(all_items) + 1
-    weight_col = 3 + len(all_items)
+    show_loc = party_locations is not None
+    name_col = 2
+    loc_col = 3 if show_loc else None
+    item_start_col = 4 if show_loc else 3
+    total_cols = (item_start_col - 1) + len(all_items) + 1
+    weight_col = item_start_col + len(all_items)
 
     title_row(ws, 1, title_text, total_cols, dark_hex)
     info_row(ws, 2,
@@ -436,8 +443,10 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
 
     ws.row_dimensions[3].height = 50
     header_cell(ws, 3, 1, "S.No", dark_hex, CTR)
-    header_cell(ws, 3, 2, "PARTY NAME", dark_hex, Alignment(horizontal="left", vertical="center", wrap_text=True))
-    for idx, item in enumerate(all_items, start=3):
+    header_cell(ws, 3, name_col, "PARTY NAME", dark_hex, Alignment(horizontal="left", vertical="center", wrap_text=True))
+    if show_loc:
+        header_cell(ws, 3, loc_col, "LOCATION", dark_hex, Alignment(horizontal="left", vertical="center", wrap_text=True))
+    for idx, item in enumerate(all_items, start=item_start_col):
         c = ws.cell(row=3, column=idx, value=item)
         c.font = Font(name="Arial", bold=True, size=9, color=WHITE)
         c.fill = mk_fill(med_hex); c.alignment = WRP; c.border = thin_border()
@@ -449,10 +458,13 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
         ws.row_dimensions[er].height = 16
         row_fill = mk_fill(ALT_GRAY) if row_num % 2 == 0 else mk_fill(WHITE)
         data_cell(ws, er, 1, row_num, row_fill, CTR)
-        data_cell(ws, er, 2, party, row_fill, LFT)
+        data_cell(ws, er, name_col, party, row_fill, LFT)
+        if show_loc:
+            locs = ", ".join(party_locations.get(party, []))
+            data_cell(ws, er, loc_col, locs, row_fill, LFT)
         p_items = party_data.get(party, {})
         party_weight = 0.0
-        for col_idx, item in enumerate(all_items, start=3):
+        for col_idx, item in enumerate(all_items, start=item_start_col):
             qty = p_items.get(item, None)
             data_cell(ws, er, col_idx, qty, row_fill, CTR, '#,##0' if qty else None)
             if qty:
@@ -465,14 +477,14 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
     total_row = 3 + len(sorted_parties) + 1
     data_start, data_end = 4, 3 + len(sorted_parties)
     ws.row_dimensions[total_row].height = 18
-    ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=2)
-    for col in (1, 2):
+    ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=item_start_col - 1)
+    for col in range(1, item_start_col):
         c = ws.cell(row=total_row, column=col)
         c.fill = mk_fill(dark_hex); c.border = thin_border()
     c = ws.cell(row=total_row, column=1, value="GRAND TOTAL")
     c.font = Font(name="Arial", bold=True, size=10, color=WHITE); c.alignment = CTR
 
-    for col_idx in range(3, 3 + len(all_items) + 1):
+    for col_idx in range(item_start_col, item_start_col + len(all_items) + 1):
         col_letter = get_column_letter(col_idx)
         c = ws.cell(row=total_row, column=col_idx,
                     value=f"=SUM({col_letter}{data_start}:{col_letter}{data_end})")
@@ -481,12 +493,14 @@ def build_party_matrix(wb, sheet_title, title_text, party_data,
         c.number_format = '#,##0'
 
     ws.column_dimensions["A"].width = 6
-    ws.column_dimensions["B"].width = 38
-    for col_idx in range(3, 3 + len(all_items)):
-        item = all_items[col_idx - 3]
+    ws.column_dimensions[get_column_letter(name_col)].width = 38
+    if show_loc:
+        ws.column_dimensions[get_column_letter(loc_col)].width = 20
+    for col_idx in range(item_start_col, item_start_col + len(all_items)):
+        item = all_items[col_idx - item_start_col]
         ws.column_dimensions[get_column_letter(col_idx)].width = max(10, min(18, len(item) * 0.85))
     ws.column_dimensions[get_column_letter(weight_col)].width = 16
-    ws.freeze_panes = "C4"
+    ws.freeze_panes = f"{get_column_letter(item_start_col)}4"
 
 def build_location_tab(wb, sheet_title, location_name, items_dict, dark_hex, med_hex):
     ws = wb.create_sheet(title=sheet_title[:31])
@@ -556,6 +570,19 @@ def build_excel(data, out_path, title):
             if qty > 0:
                 loc_data[bill['location']][item] += qty
 
+    # ── Which location(s) each party has bills from ──
+    party_locations = defaultdict(set)
+    for bill in bills:
+        party_locations[bill['party']].add(bill['location'])
+    party_locations = {p: sorted(locs) for p, locs in party_locations.items()}
+
+    # ── Aggregate by (location, party) — for the per-location Party Wise tabs ──
+    loc_party_data = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    for bill in bills:
+        for item, qty in bill['items'].items():
+            if qty > 0:
+                loc_party_data[bill['location']][bill['party']][item] += qty
+
     def top_parties():
         totals = {p: sum(items.values()) for p, items in party_data.items() if sum(items.values()) > 0}
         return sorted(totals.items(), key=lambda x: x[1], reverse=True)[:20]
@@ -584,14 +611,25 @@ def build_excel(data, out_path, title):
     )
 
     build_party_matrix(
-        wb, "Party Wise", f"{title}  —  PARTY WISE",
+        wb, "Party Wise", f"{title}  —  PARTY WISE (All Locations)",
         {p: dict(v) for p, v in party_data.items()},
-        sorted(parties), all_items, DARK_BLUE, MED_BLUE
+        sorted(parties), all_items, DARK_BLUE, MED_BLUE,
+        party_locations=party_locations
     )
 
     for loc in sorted(locations):
         items_dict = dict(loc_data[loc])
         build_location_tab(wb, loc, loc, items_dict, DARK_BLUE, MED_BLUE)
+
+    # ── Per-location Party Wise tabs — same matrix, filtered to one location ──
+    for loc in sorted(locations):
+        loc_parties = sorted(loc_party_data[loc].keys())
+        loc_items = sorted({item for p in loc_parties for item in loc_party_data[loc][p].keys()})
+        build_party_matrix(
+            wb, f"PW - {loc}"[:31], f"{title}  —  PARTY WISE  ({loc})",
+            {p: dict(v) for p, v in loc_party_data[loc].items()},
+            loc_parties, loc_items, DARK_BLUE, MED_BLUE
+        )
 
     wb.save(out_path)
 
