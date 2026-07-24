@@ -644,7 +644,7 @@ def build_location_tab(wb, sheet_title, location_name, items_dict, dark_hex, med
     ws.row_dimensions[3].height = 20
     header_cell(ws, 3, 1, "S.No", dark_hex, CTR)
     header_cell(ws, 3, 2, "Item Name", dark_hex, Alignment(horizontal="left", vertical="center"))
-    header_cell(ws, 3, 3, "Balance Qty", dark_hex, CTR)
+    header_cell(ws, 3, 3, "Qty", dark_hex, CTR)
     header_cell(ws, 3, 4, "Wt (per unit)", dark_hex, CTR)
     header_cell(ws, 3, 5, "Total Wt", dark_hex, CTR)
 
@@ -684,6 +684,27 @@ def build_location_tab(wb, sheet_title, location_name, items_dict, dark_hex, med
     ws.freeze_panes = "A4"
 
 
+def build_missing_weight_tab(wb, items_list, dark_hex, med_hex):
+    ws = wb.create_sheet(title="Missing Weight")
+    title_row(ws, 1, "SKUs With No Weight Match", 2, dark_hex)
+    info_row(ws, 2, f"{len(items_list)} items — add these to the weight list so Total Wt can be calculated", 2, med_hex)
+
+    ws.row_dimensions[3].height = 20
+    header_cell(ws, 3, 1, "S.No", dark_hex, CTR)
+    header_cell(ws, 3, 2, "Item Name", dark_hex, Alignment(horizontal="left", vertical="center"))
+
+    for row_num, item in enumerate(items_list, start=1):
+        er = 3 + row_num
+        ws.row_dimensions[er].height = 16
+        row_fill = mk_fill(ALT_GRAY) if row_num % 2 == 0 else mk_fill(WHITE)
+        data_cell(ws, er, 1, row_num, row_fill, CTR)
+        data_cell(ws, er, 2, item, row_fill, LFT)
+
+    ws.column_dimensions["A"].width = 6
+    ws.column_dimensions["B"].width = 46
+    ws.freeze_panes = "A4"
+
+
 def build_excel(data, out_path, title):
     bills = data['bills']
     locations = data['locations']
@@ -719,14 +740,16 @@ def build_excel(data, out_path, title):
 
     def top_parties():
         totals = {p: sum(items.values()) for p, items in party_data.items() if sum(items.values()) > 0}
-        return sorted(totals.items(), key=lambda x: x[1], reverse=True)[:20]
+        top20 = sorted(totals.items(), key=lambda x: x[1], reverse=True)[:20]
+        return sorted(top20, key=lambda x: x[0])  # biggest 20 selected, then shown A to Z
 
     def top_items():
         totals = defaultdict(float)
         for p, items in party_data.items():
             for item, qty in items.items():
                 totals[item] += qty
-        return sorted(totals.items(), key=lambda x: x[1], reverse=True)[:20]
+        top20 = sorted(totals.items(), key=lambda x: x[1], reverse=True)[:20]
+        return sorted(top20, key=lambda x: x[0])  # biggest 20 selected, then shown A to Z
 
     grand_total = sum(qty for p, items in party_data.items() for qty in items.values())
     grand_weight = sum(
@@ -769,9 +792,11 @@ def build_excel(data, out_path, title):
             loc_parties, loc_items, DARK_BLUE, MED_BLUE
         )
 
-    wb.save(out_path)
-
     unmatched = sorted({item for item in all_items if get_weight(item) is None})
+    if unmatched:
+        build_missing_weight_tab(wb, unmatched, DARK_BLUE, MED_BLUE)
+
+    wb.save(out_path)
     return unmatched
 
 
@@ -859,7 +884,7 @@ if 'result' in st.session_state:
     if s['locations']:
         st.write("Locations: " + ", ".join(s['locations']))
     if s.get('recovered_count'):
-        st.info(f"✅ {s['recovered_count']} bills me 'Balance Qty' line nahi thi, unki Qty 'Description For Hire Charges' table se le li gayi hai.")
+        st.info(f"✅ {s['recovered_count']} bills me Qty seedhe nahi mili, hire charges table se nikal li gayi.")
     if s['no_balance_count']:
         st.info(f"{s['no_balance_count']} bills me kahi se bhi Qty nahi mili (final bills — skip kiye).")
     if s['errors']:
