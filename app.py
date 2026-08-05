@@ -343,7 +343,14 @@ def get_party(filepath):
 # ONLY used when a bill has NO "Balance Qty:" line at all. When Balance Qty
 # exists it is trusted as-is and this fallback is never consulted or
 # cross-checked against it (per Rahul's instruction).
-_HC_NUM_LINE_RE = re.compile(r'^-?[\d.,]+(\s*\(-?[\d.,]+\s*[+\-]\s*-?[\d.,]+\))?$')
+# A value line is either a bare number (the item's starting qty) or a number
+# followed by a parenthetical showing how it was derived, e.g. "9(18 - 9)"
+# or, when two returns land in the same period bucket, "0(9 - 7 - 2)" (2+
+# deductions chained with +/-). The old version only allowed exactly one
+# operator inside the parens, so a 2-deduction line like "0(9 - 7 - 2)" fell
+# through as "not a number", got misread as a bogus item name, and caused
+# the line before it to be wrongly flushed as the item's final value.
+_HC_NUM_LINE_RE = re.compile(r'^-?[\d.,]+(\s*\(-?[\d.,]+(\s*[+\-]\s*-?[\d.,]+)+\))?$')
 _HC_JUNK_NAMES = {
     "GRAND TOTAL", "TOTAL AMOUNT", "CGST", "SGST", "ROUND OFF", "CGST (9%)", "SGST (9%)",
     "CONTINUE FROM NEXT PAGE", "BANK DETAILS", "PARTY NAME", "BILLING ADDRESS", "GST NO",
@@ -374,7 +381,18 @@ def extract_hire_charges_items(text):
     """Line-by-line pass over the 'Description For Hire Charges' table.
     For each item, the LAST number seen before the next item name is its
     final balance (matches how the bill itself resolves partial-period
-    returns, e.g. '507(564 - 57)' -> takes 507)."""
+    returns, e.g. '507(564 - 57)' -> takes 507).
+
+    Safety net: this table's layout sometimes puts a shared Period/GST SAC
+    No/Days/Number/Rate/Amount block AFTER a whole run of item name+chain
+    blocks (rather than right under each item), so the last item in a run
+    can accidentally swallow an unrelated number from that trailing block
+    (e.g. a GST SAC code like 997313) as its "final" value. Since every
+    chain is a running total that only ever decreases (starting qty, then
+    successive returns/deductions), the true final value can never exceed
+    the item's own starting value. Any parsed value that violates this is
+    almost certainly leaked table noise, not a real quantity — it's
+    discarded rather than trusted."""
     items = {}
     for m in re.finditer(r'Description For Hire Charges', text):
         start = m.end()
@@ -390,18 +408,26 @@ def extract_hire_charges_items(text):
         section = text[start:end]
 
         lines = [l.strip() for l in section.split('\n') if l.strip()]
-        current_item, last_val = None, None
+        current_item, last_val, initial_val = None, None, None
+
+        def flush():
+            if current_item and last_val is not None and last_val != 0 and _hc_looks_like_item(current_item):
+                if initial_val is not None and last_val > initial_val:
+                    return  # impossible — a running deduction can't end higher than it started
+                items[current_item] = items.get(current_item, 0) + last_val
+
         for line in lines:
             if _HC_NUM_LINE_RE.match(line):
                 nm = re.match(r'^(-?[\d.]+)', line)
                 if nm and current_item:
-                    last_val = float(nm.group(1))
+                    val = float(nm.group(1))
+                    if initial_val is None:
+                        initial_val = val
+                    last_val = val
             else:
-                if current_item and last_val is not None and last_val != 0 and _hc_looks_like_item(current_item):
-                    items[current_item] = items.get(current_item, 0) + last_val
-                current_item, last_val = line.upper(), None
-        if current_item and last_val is not None and last_val != 0 and _hc_looks_like_item(current_item):
-            items[current_item] = items.get(current_item, 0) + last_val
+                flush()
+                current_item, last_val, initial_val = line.upper(), None, None
+        flush()
     return items
 
 def parse_folder(root, progress_cb=None):
