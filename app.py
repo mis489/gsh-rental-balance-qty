@@ -343,6 +343,7 @@ def get_party(filepath):
 # ONLY used when a bill has NO "Balance Qty:" line at all. When Balance Qty
 # exists it is trusted as-is and this fallback is never consulted or
 # cross-checked against it (per Rahul's instruction).
+#
 # A value line is either a bare number (the item's starting qty) or a number
 # followed by a parenthetical showing how it was derived, e.g. "9(18 - 9)"
 # or, when two returns land in the same period bucket, "0(9 - 7 - 2)" (2+
