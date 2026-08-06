@@ -338,6 +338,14 @@ def get_party(filepath):
         return parts[1].strip()
     return base
 
+def get_bill_no(filepath):
+    """Bill No = first underscore-separated segment of the filename,
+    e.g. 'KSB00514_SUROJ BUILDCON PVT LTD...pdf' -> 'KSB00514'.
+    Every bill has its own unique Bill No."""
+    base = os.path.basename(filepath).replace('.pdf', '')
+    parts = base.split('_')
+    return parts[0].strip()
+
 
 # ── Fallback: "Description For Hire Charges" table ──────────
 # ONLY used when a bill has NO "Balance Qty:" line at all. When Balance Qty
@@ -451,6 +459,7 @@ def parse_folder(root, progress_cb=None):
         else:
             location = clean_location(parent_name)
         party = get_party(pdf_path)
+        bill_no = get_bill_no(pdf_path)
         try:
             text = extract_text(pdf_path)
             items, ambiguous = extract_balance_qty(text)
@@ -473,6 +482,7 @@ def parse_folder(root, progress_cb=None):
                     no_balance_files.append({"filename": os.path.basename(pdf_path), "path": pdf_path})
             bills.append({
                 "filename": os.path.basename(pdf_path),
+                "bill_no": bill_no,
                 "location": location, "party": party, "items": items,
                 "recovered_from": recovered_from,
             })
@@ -781,6 +791,96 @@ def build_missing_weight_tab(wb, items_list, dark_hex, med_hex):
     ws.freeze_panes = "A4"
 
 
+def build_bill_wise_tab(wb, sheet_title, title_text, bills, all_items, dark_hex, med_hex):
+    """One row PER BILL (not aggregated) — S.No, Bill No, Party Name, Location,
+    then that bill's own item quantities. Negative/zero qty is blanked out on
+    a per-row basis, same convention as everywhere else in the report."""
+    ws = wb.create_sheet(title=sheet_title[:31])
+    bill_col = 2
+    party_col = 3
+    loc_col = 4
+    item_start_col = 5
+    qty_total_col = item_start_col + len(all_items)
+    weight_col = qty_total_col + 1
+    total_cols = weight_col
+
+    title_row(ws, 1, title_text, total_cols, dark_hex)
+    info_row(ws, 2,
+        f"Bills: {len(bills)}   |   Items: {len(all_items)}   |   Negative qty never added into totals",
+        total_cols, med_hex)
+
+    ws.row_dimensions[3].height = 50
+    header_cell(ws, 3, 1, "S.No", dark_hex, CTR)
+    header_cell(ws, 3, bill_col, "BILL NO", dark_hex, CTR)
+    header_cell(ws, 3, party_col, "PARTY NAME", dark_hex, Alignment(horizontal="left", vertical="center", wrap_text=True))
+    header_cell(ws, 3, loc_col, "LOCATION", dark_hex, Alignment(horizontal="left", vertical="center", wrap_text=True))
+    for idx, item in enumerate(all_items, start=item_start_col):
+        c = ws.cell(row=3, column=idx, value=item)
+        c.font = Font(name="Arial", bold=True, size=9, color=WHITE)
+        c.fill = mk_fill(med_hex); c.alignment = WRP; c.border = thin_border()
+    header_cell(ws, 3, qty_total_col, "TOTAL QTY", dark_hex,
+                Alignment(horizontal="center", vertical="center", wrap_text=True))
+    header_cell(ws, 3, weight_col, "TOTAL WEIGHT (kg)", dark_hex,
+                Alignment(horizontal="center", vertical="center", wrap_text=True))
+
+    item_col_letter_start = get_column_letter(item_start_col)
+    item_col_letter_end = get_column_letter(qty_total_col - 1) if all_items else item_col_letter_start
+
+    sorted_bills = sorted(bills, key=lambda b: (b['location'], b['bill_no']))
+
+    for row_num, bill in enumerate(sorted_bills, start=1):
+        er = 3 + row_num
+        ws.row_dimensions[er].height = 16
+        row_fill = mk_fill(ALT_GRAY) if row_num % 2 == 0 else mk_fill(WHITE)
+        data_cell(ws, er, 1, row_num, row_fill, CTR)
+        data_cell(ws, er, bill_col, bill['bill_no'], row_fill, CTR)
+        data_cell(ws, er, party_col, bill['party'], row_fill, LFT)
+        data_cell(ws, er, loc_col, bill['location'], row_fill, LFT)
+        bill_weight = 0.0
+        for col_idx, item in enumerate(all_items, start=item_start_col):
+            qty = bill['items'].get(item)
+            if qty is not None and qty <= 0:
+                qty = None   # negative/zero never shown — same rule as rest of the report
+            data_cell(ws, er, col_idx, qty, row_fill, CTR, '#,##0' if qty else None)
+            if qty:
+                wt = get_weight(item)
+                if wt is not None:
+                    bill_weight += qty * wt
+        qty_total_formula = f"=SUM({item_col_letter_start}{er}:{item_col_letter_end}{er})" if all_items else None
+        data_cell(ws, er, qty_total_col, qty_total_formula, row_fill, CTR, '#,##0')
+        data_cell(ws, er, weight_col, int(round(bill_weight)) if bill_weight else None,
+                   row_fill, CTR, '#,##0')
+
+    total_row = 3 + len(sorted_bills) + 1
+    data_start, data_end = 4, 3 + len(sorted_bills)
+    ws.row_dimensions[total_row].height = 18
+    ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=item_start_col - 1)
+    for col in range(1, item_start_col):
+        c = ws.cell(row=total_row, column=col)
+        c.fill = mk_fill(dark_hex); c.border = thin_border()
+    c = ws.cell(row=total_row, column=1, value="GRAND TOTAL")
+    c.font = Font(name="Arial", bold=True, size=10, color=WHITE); c.alignment = CTR
+
+    for col_idx in range(item_start_col, weight_col + 1):
+        col_letter = get_column_letter(col_idx)
+        c = ws.cell(row=total_row, column=col_idx,
+                    value=f"=SUM({col_letter}{data_start}:{col_letter}{data_end})")
+        c.font = Font(name="Arial", bold=True, size=10, color=WHITE)
+        c.fill = mk_fill(dark_hex); c.alignment = CTR; c.border = thin_border()
+        c.number_format = '#,##0'
+
+    ws.column_dimensions["A"].width = 6
+    ws.column_dimensions[get_column_letter(bill_col)].width = 16
+    ws.column_dimensions[get_column_letter(party_col)].width = 34
+    ws.column_dimensions[get_column_letter(loc_col)].width = 18
+    for col_idx in range(item_start_col, item_start_col + len(all_items)):
+        item = all_items[col_idx - item_start_col]
+        ws.column_dimensions[get_column_letter(col_idx)].width = max(10, min(18, len(item) * 0.85))
+    ws.column_dimensions[get_column_letter(qty_total_col)].width = 14
+    ws.column_dimensions[get_column_letter(weight_col)].width = 16
+    ws.freeze_panes = f"{get_column_letter(item_start_col)}4"
+
+
 def build_excel(data, out_path, title):
     bills = data['bills']
     locations = data['locations']
@@ -859,6 +959,15 @@ def build_excel(data, out_path, title):
         {p: dict(v) for p, v in party_data.items()},
         sorted(parties), all_items, DARK_BLUE, MED_BLUE,
         party_locations=party_locations
+    )
+
+    # ── NEW: Bill Wise Stock Report — one row per individual bill, with its
+    # own unique Bill No, Party Name, and that bill's own (not aggregated)
+    # item quantities. Added per Rahul's request — everything above/below
+    # this stays exactly as it was. ──
+    build_bill_wise_tab(
+        wb, "Bill Wise", f"{title}  —  BILL WISE STOCK REPORT",
+        bills, all_items, DARK_BLUE, MED_BLUE
     )
 
     bills_per_location = defaultdict(int)
